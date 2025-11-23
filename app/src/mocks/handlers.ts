@@ -1,49 +1,23 @@
 import { http, HttpResponse } from 'msw';
 import type { ChatMessage, NarrativeMaterial, Question, ReportData } from '../types';
 
+const phq9Options = ['完全不会', '好几天', '一半以上的天数', '几乎每天'];
+
 const questions: Question[] = [
+  { id: 'q1', title: '做事时提不起劲或没有兴趣', options: phq9Options, type: 'single' },
+  { id: 'q2', title: '感到心情低落、沮丧或绝望', options: phq9Options, type: 'single' },
+  { id: 'q3', title: '入睡困难、睡不着或睡得太多', options: phq9Options, type: 'single' },
+  { id: 'q4', title: '感到疲倦或没有活力', options: phq9Options, type: 'single' },
+  { id: 'q5', title: '食欲不振或吃得太多', options: phq9Options, type: 'single' },
+  { id: 'q6', title: '觉得自己很糟，或觉得让自己/家人失望', options: phq9Options, type: 'single' },
+  { id: 'q7', title: '对事物专注有困难，例如阅读或看电视时', options: phq9Options, type: 'single' },
   {
-    id: 'q1',
-    title: '过去两周，你是否常常感到紧张、焦虑或烦躁？',
-    options: ['完全没有', '几天', '一半以上的天数', '几乎每天'],
+    id: 'q8',
+    title: '动作或说话速度慢到被察觉，或相反——烦躁、坐立不安',
+    options: phq9Options,
     type: 'single',
   },
-  {
-    id: 'q2',
-    title: '你是否难以控制自己的担忧？',
-    options: ['完全没有', '几天', '一半以上的天数', '几乎每天'],
-    type: 'single',
-  },
-  {
-    id: 'q3',
-    title: '是否因为担心而难以放松？',
-    options: ['完全没有', '几天', '一半以上的天数', '几乎每天'],
-    type: 'single',
-  },
-  {
-    id: 'q4',
-    title: '是否感到坐立不安或无法安静下来？',
-    options: ['完全没有', '几天', '一半以上的天数', '几乎每天'],
-    type: 'single',
-  },
-  {
-    id: 'q5',
-    title: '是否容易被激怒或烦躁？',
-    options: ['完全没有', '几天', '一半以上的天数', '几乎每天'],
-    type: 'single',
-  },
-  {
-    id: 'q6',
-    title: '是否常有某种可怕事情会发生的感觉？',
-    options: ['完全没有', '几天', '一半以上的天数', '几乎每天'],
-    type: 'single',
-  },
-  {
-    id: 'q7',
-    title: '这些问题给你的学习或社交带来多大困扰？',
-    options: ['完全没有', '一点点', '中等', '非常严重'],
-    type: 'single',
-  },
+  { id: 'q9', title: '有不如死掉或伤害自己的念头', options: phq9Options, type: 'single' },
 ];
 
 const materials: NarrativeMaterial[] = [
