@@ -1,0 +1,84 @@
+# 后端联调与指引（spec_1127 对齐版）
+
+本项目前端技术栈：React 18 + TS + Vite + MUI，Axios 封装在 `app/src/lib/axios.ts`，默认 `baseURL=/api`，自动附带：
+- `X-Session-Id`：保存在 localStorage（若无则生成 `sess_*`）
+- `Authorization: Bearer <token>`：来自 localStorage 的 `token`
+
+本地默认启用 MSW Mock（`src/main.tsx` 引导 `./mocks/browser`）。联调时可临时注释 MSW 启动或保留 `public/mockServiceWorker.js`。
+
+前端静态资源：`app/public/picture/101-110,201-210,301-310.png`（已复制 picture 目录），接口返回的 `imageUrl` 使用 `/picture/{id}.png` 即可。
+
+## 接口契约（需后端实现）
+
+### 1) 认证
+- `POST /api/auth/register` -> `{ token, user }`
+  - Body: `{ phone, password, name, schoolId?, className?, role: 'student'|'school_admin' }`
+- `POST /api/auth/login` -> `{ token, user }`
+  - Body: `{ phone, password }`
+- 相关前端：`src/pages/AuthPage.tsx`，store `src/store/authSlice.ts`
+
+### 2) PHQ-9 + 个人信息
+- `GET /api/scale` -> `{ questions: Question[] }`
+  - `Question = { id: string; title: string; options: string[]; type: 'single' }`
+- `POST /api/scale` -> `{ success: true, score: number, severity: string, summaryText?: string }`
+  - Body: `{ profile: { name, gender, ageRange, history, diagnosisTime, diagnosisId, note? }, answers: Record<string,string>, dwellTimes: { questionId, value, dwellTimeMs }[] }`
+- 相关前端：`src/pages/ScalePage.tsx`, `src/store/scaleSlice.ts`
+
+### 3) CAPS 看图文本（负/中/正各 1 张）
+- `GET /api/pictures` -> `{ materials: [{ id, imageUrl, instruction, category }] }`
+  - `category`: `negative|neutral|positive`
+  - 建议 imageUrl 直接返回 `/picture/{id}.png`
+- `POST /api/pictures/text` -> `{ success: true }`
+  - Body: `{ responses: [{ imageId, category, content }] }`
+- 相关前端：`src/pages/VisualNarrativePage.tsx`, `src/store/narrativeSlice.ts`
+
+### 4) 阅读材料（6 选 2，画画/诗歌为合并篇）
+- `GET /api/readings` -> `{ pool: [{ id, title, content }] }`
+  - 需包含 6 篇：画画组合并 1 篇、诗歌组合并 1 篇、第四/第五/第六/第七各 1 篇
+- `POST /api/readings/record` -> `{ success: true }`
+  - Body: `{ passageIds: number[] }`
+- 相关前端：`src/pages/ReadingPage.tsx`, `src/store/readingSlice.ts`
+
+### 5) 半结构访谈（A→B→C 各 1 题）
+- `GET /api/interview/questions?category=A|B|C&count=1` -> `{ questions: [{ id, category, content }] }`
+- `POST /api/interview/answers` -> `{ success: true }`
+  - Body: `{ answers: [{ questionId, category, content }] }`
+- 相关前端：`src/pages/InterviewPage.tsx`, `src/store/interviewSlice.ts`
+
+### 6) 本地二分类推理占位
+- `POST /api/inference/local-binary` -> `{ label: string, summary: string, confidence?: number }`
+  - Body: `{ phqScore: number, imageTexts: [{ imageId, content }], userProfile: { ageRange, gender, occupation? } }`
+- 相关前端：`src/store/reportSlice.ts`, `src/pages/ReportPage.tsx`
+
+### 7) 智能诊疗对话（沿用原有）
+- `POST /api/chat` -> `{ messages: ChatMessage[] }`
+  - Body: `{ messages: ChatMessage[], editCount: number, sessionId?: string }`
+  - `ChatMessage`: 文本 `{ id, role: 'user'|'ai'|'system', type: 'text', content }`；选项 `{ id, role:'ai', type:'options', content, options: string[] }`
+- 相关前端：`src/pages/ChatPage.tsx`, `src/store/chatSlice.ts`
+
+### 8) 综合报告
+- `GET /api/report` -> `{ anxietyScore, authenticityScore, radar: { dimension, value }[], insights: string[] }`
+- 前端：`authenticityScore < 60` 时黄色警示；推理结果展示在报告页（来源于 6）
+- 相关前端：`src/pages/ReportPage.tsx`, `src/store/reportSlice.ts`
+
+## 后端注意事项
+- 身份与授权：前端会带 `Authorization`；学校端角色 `school_admin` 需做鉴权隔离。
+- 静态图片：可由前端静态目录 `/picture/*.png` 直接提供；如需后端签名 URL，请保持字段 `imageUrl`。
+- 错误返回：请统一 `{ message: string }`；上传或推理等易失败接口务必返回可读 message。
+- CORS：放行端口 5173 和头部 `X-Session-Id`, `Authorization`。
+- 评分逻辑：PHQ-9 分数与严重度映射 0-4/5-9/10-14/15-19/20-27，前端已在 Mock 使用相同区间。
+
+## 前端元素修改位置速查
+- 路由与布局：`src/App.tsx`, `src/layout/MainLayout.tsx`
+- PHQ-9 表单与结果：`src/pages/ScalePage.tsx`, `src/store/scaleSlice.ts`
+- 看图描述：`src/pages/VisualNarrativePage.tsx`, `src/store/narrativeSlice.ts`
+- 阅读短文：`src/pages/ReadingPage.tsx`, `src/store/readingSlice.ts`
+- 访谈：`src/pages/InterviewPage.tsx`, `src/store/interviewSlice.ts`
+- 推理与报告：`src/store/reportSlice.ts`, `src/pages/ReportPage.tsx`
+- Auth：`src/pages/AuthPage.tsx`, `src/store/authSlice.ts`
+- Mock：`src/mocks/handlers.ts`（可对照实现）
+
+## 联调建议路径
+1) 关闭 MSW（注释 `src/main.tsx` 的 worker.start），`npm run dev`。
+2) 测试顺序：`/login` → `/scale` → `/visual-narrative`（3 张文本）→ `/reading`（随机 2 篇）→ `/interview`（A→B→C）→ `/report`（调用推理）。
+3) 日志检查 `X-Session-Id` 与 token 贯穿；异常时返回 `{ message }` 便于前端展示。
